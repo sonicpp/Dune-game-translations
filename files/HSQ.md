@@ -9,10 +9,12 @@ Header
 ------
 Header is made of first 6 bytes of the file.
 
+```
    0  1  2  3  4  5
  +--+--+--+--+--+--+
  |D0|D1|D2|C0|C1|CH|
  +--+--+--+--+--+--+
+```
 
 - bytes D0, D1 and D2 in little endian order forms size of decompressed file
 - bytes C0 and C1 forms size of compressed file (size of HSQ file)
