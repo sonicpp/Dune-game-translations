@@ -10,10 +10,7 @@ This document describes following files (extractated):
 - COMMAND3.HSQ
 
 Every single file is compressed by HSQ algorithm, which is not described in
-this document. For HSQ compression see
-[Dune Revival project](https://sourceforge.net/p/dunerevival/)
-or
-[FED2k discussion](https://forum.dune2k.com/topic/17217-rewriting-cryos-dune-1-it-seems-possible/?page=1).
+this document. For HSQ compression see file HSQ.md.
 
 File format
 ===========
