@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <getopt.h>
 #include <errno.h>
 
@@ -22,8 +23,6 @@ enum OP_TYPE {
 	UNPACK,
 	CHECK
 };
-
-typedef unsigned short t_word;
 
 void print_help(void)
 {
@@ -37,12 +36,12 @@ void print_help(void)
 
 int is_little(void)
 {
-	t_word w = 0x0001;
+	uint16_t w = 0x0001;
 
 	return *((unsigned char *) &w);
 }
 
-t_word to_little(const t_word w)
+uint16_t to_little(const uint16_t w)
 {
 	if (is_little())
 		return w;
@@ -182,13 +181,13 @@ char *read_file(char *name, long *len)
 
 int check(char *buf, long len, int verbose)
 {
-	t_word *offset_ptr, *text_bgn;
-	t_word offset, offset_prev;
+	uint16_t *offset_ptr, *text_bgn;
+	uint16_t offset, offset_prev;
 	char *sentence_end;
 
-	offset_ptr = (t_word *) buf;
+	offset_ptr = (uint16_t *) buf;
 	offset = to_little(*offset_ptr);
-	text_bgn = (t_word *) (buf + offset);
+	text_bgn = (uint16_t *) (buf + offset);
 
 	/* File is too short, corrupted, or too long for 16 bit addressing */
 	if (len < 3L || offset > len || len > 65535L)
@@ -223,9 +222,9 @@ int unpack(char *buf, long len, char *name, int verbose)
 {
 	FILE *f;
 	long i;
-	t_word offset;
+	uint16_t offset;
 
-	offset = to_little(*((t_word *) buf));
+	offset = to_little(*((uint16_t *) buf));
 
 	if (memchr(buf + offset, '\n', len - offset) != NULL) {
 		fprintf(stderr, "Char '\\n' is used!\n");
@@ -261,8 +260,8 @@ int pack(char *buf, long len, char *name, int verbose)
 	int phrases = 0;
 	int phrase_len;
 	char *phrase_end;
-	t_word offset, offset_le;
-	t_word off_start;
+	uint16_t offset, offset_le;
+	uint16_t off_start;
 
 	if ((f = fopen(name, "wb")) == NULL) {
 		fprintf(stderr, "Error opening file '%s'\n", name);
@@ -340,15 +339,6 @@ int main(int argc, char *argv[])
 	int verbose;
 	int little_endian;
 	enum OP_TYPE operation;
-
-	if (sizeof(t_word) != 2) {
-		fprintf(stderr, "This util is not compatible with your hw!\n"
-			"Your 'short int' is size of %lu,"
-			"but required size is 2.\n",
-			sizeof(t_word));
-
-		return 1;
-	}
 
 	if (check_args(argc, argv, &verbose, &operation,
 		&fr_name, &fw_name))
