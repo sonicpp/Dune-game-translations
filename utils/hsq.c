@@ -296,8 +296,25 @@ size_t compress_chunk(flags_t *f, const uint8_t *istream,
 	return ostream - ostream_bgn;
 }
 
+int check_header(const uint8_t *header)
+{
+	return ((header[0] + header[1] + header[2] + header[3] + header[4]
+		+ header[5]) & 0xFF) == HSQ_CHECKSUM;
+}
+
 int decompress(FILE *fr, FILE *fw)
 {
+	uint8_t header_buf[6];
+	size_t in_len = 0;
+	size_t out_len = 0;
+
+	/* Check header checksum */
+	if (fread(header_buf, 1, 6, fr) != 6)
+		return 1;
+	in_len += 6;
+	if (!check_header(header_buf))
+		return 1;
+
 	return 0;
 }
 
@@ -397,10 +414,13 @@ int main(int argc, char *argv[])
 	else
 		fw = stdout;;
 
-	if (operation == COMPRESS)
+	if (operation == COMPRESS) {
 		compress(fr, fw);
-	else
-		decompress(fr, fw);
+	}
+	else {
+		if (decompress(fr, fw))
+			fprintf(stderr, "Decompression failed\n");
+	}
 
 	if (fr != stdin)
 		fclose(fr);
