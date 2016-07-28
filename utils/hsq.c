@@ -28,6 +28,7 @@
 
 enum OP_TYPE {
 	COMPRESS,
+	DECOMPRESS,
 };
 
 typedef struct flags {
@@ -49,9 +50,10 @@ void print_help(void)
 		"If FILE is not specified, then standard input will be used\n\n"
 		" -v, --verbose\tverbose mode\n"
 		" -c, --compress\tcompress input file and write to the output\n"
+		" -d, --decompress\tdecompress input file and write to the output\n"
 		" -o, --out FILE\tsave output to FILE instead to stdout\n"
 		" -h, --help\tprint this help\n");
-}
+ }
 
 int check_args(int argc, char *argv[],
 	int *verbose, enum OP_TYPE *operation,
@@ -59,10 +61,12 @@ int check_args(int argc, char *argv[],
 {
 	int c;
 	int compress = 0;
+	int decompress = 0;
 	int opt_index = 0;
 	static struct option long_opt[] = {
 		{ "verbose",	0, NULL, 'v' },
 		{ "compress",	0, NULL, 'c' },
+		{ "decompress",	0, NULL, 'd' },
 		{ "out",	1, NULL, 'o' },
 		{ "help",	0, NULL, 'h' },
 		{ NULL,		0, NULL, 0   }
@@ -72,7 +76,7 @@ int check_args(int argc, char *argv[],
 	*fin = NULL;
 	*fout = NULL;
 
-	while ((c = getopt_long(argc, argv, "vco:h",
+	while ((c = getopt_long(argc, argv, "vcdo:h",
 		long_opt, &opt_index)) != -1) {
 		switch (c) {
 		case 'v':
@@ -81,6 +85,10 @@ int check_args(int argc, char *argv[],
 		case 'c':
 			compress = 1;
 			*operation = COMPRESS;
+			break;
+		case 'd':
+			decompress = 1;
+			*operation = DECOMPRESS;
 			break;
 		case 'o':
 			*fout = optarg;
@@ -94,7 +102,7 @@ int check_args(int argc, char *argv[],
 		}
 	}
 
-	if (compress != 1) {
+	if (compress + decompress != 1) {
 		print_help();
 		return 1;
 	}
@@ -288,6 +296,11 @@ size_t compress_chunk(flags_t *f, const uint8_t *istream,
 	return ostream - ostream_bgn;
 }
 
+int decompress(FILE *fr, FILE *fw)
+{
+	return 0;
+}
+
 int compress(FILE *fr, FILE *fw)
 {
 	flags_t f;
@@ -384,7 +397,10 @@ int main(int argc, char *argv[])
 	else
 		fw = stdout;;
 
-	compress(fr, fw);
+	if (operation == COMPRESS)
+		compress(fr, fw);
+	else
+		decompress(fr, fw);
 
 	if (fr != stdin)
 		fclose(fr);
