@@ -1,7 +1,8 @@
 /*
- * hsq.c - HSQ compression util.
+ * hsq.c - HSQ compression and decompression util.
  *
  * Compress - Compress file by HSQ algorithm.
+ * Decompress - Dempress HSQ file.
  * This program tends to give the EXACT same results as HSQ program used
  * by Cryo developers.
  *
@@ -25,6 +26,7 @@
 #define WINDOW_BIG	0x2000U
 #define FILE_CHUNK	0x6000U
 #define HSQ_CHECKSUM	((uint8_t) 0xAB)
+#define HSQ_MAX_SIZE	0x10000U
 
 enum OP_TYPE {
 	COMPRESS,
@@ -140,6 +142,23 @@ void *memrmem(const void *mem1, size_t len1, const void *mem2, size_t len2)
 	return NULL;
 }
 
+unsigned int getbit(flags_t *f, uint8_t *bit, uint8_t *istream)
+{
+	unsigned int ret = 0;
+
+	if (f->flag_size == 0) {
+		memcpy(&(f->flag), istream, 2);
+		f->flag_size = 16;
+		ret += 2;
+	}
+
+	*bit = f->flag & 1;
+	f->flag = f->flag >> 1;
+	f->flag_size--;
+
+	return ret;
+}
+
 unsigned int putbit(flags_t *f, uint8_t bit, uint8_t *ostream)
 {
 	unsigned int ret = 0;
@@ -160,6 +179,13 @@ unsigned int putbit(flags_t *f, uint8_t bit, uint8_t *ostream)
 	f->flag_size++;
 
 	return ret;
+}
+
+unsigned int getraw(uint8_t *byte, uint8_t *istream)
+{
+	*byte = *istream;
+
+	return 1;
 }
 
 void putraw(flags_t *f, uint8_t byte)
@@ -296,24 +322,120 @@ size_t compress_chunk(flags_t *f, const uint8_t *istream,
 	return ostream - ostream_bgn;
 }
 
-int check_header(const uint8_t *header)
+int check_header(const uint8_t *header, size_t *in_len, size_t *out_len)
 {
+	*in_len = header[3] + (header[4] << 8);
+	*out_len = header[0] + (header[1] << 8) + (header[2] << 8);
+
+	if (*in_len > HSQ_MAX_SIZE)
+		return 1;
+
 	return ((header[0] + header[1] + header[2] + header[3] + header[4]
-		+ header[5]) & 0xFF) == HSQ_CHECKSUM;
+		+ header[5]) & 0xFF) != HSQ_CHECKSUM;
 }
 
 int decompress(FILE *fr, FILE *fw)
 {
-	uint8_t header_buf[6];
+	flags_t f;
+	uint8_t in_buf[HSQ_MAX_SIZE];
+	uint8_t *out_buf;
 	size_t in_len = 0;
 	size_t out_len = 0;
+	size_t enc_len;
+	size_t dec_len;
+	uint8_t bit;
+	uint8_t byte;
+	uint16_t word;
+	uint16_t lookahead_size;
+	uint16_t offset;
+	int done = 0;
+
+	f.flag_size = 0;
 
 	/* Check header checksum */
-	if (fread(header_buf, 1, 6, fr) != 6)
+	if (fread(in_buf, 1, 6, fr) != 6)
 		return 1;
 	in_len += 6;
-	if (!check_header(header_buf))
+	if (check_header(in_buf, &enc_len, &dec_len))
 		return 1;
+
+	if (fread(in_buf + in_len, 1, enc_len - 6, fr) != enc_len - 6)
+		return 1;
+
+	out_buf = (uint8_t *) malloc(dec_len);
+	if (out_buf == NULL)
+		return 1;
+
+	/* Decompress data */
+	while (!done) {
+		in_len += getbit(&f, &bit, in_buf + in_len);
+
+		/* 1 == raw data */
+		if (bit == 1) {
+			/* Dont write more than allocated memory */
+			if (out_len == dec_len)
+				break;
+
+			in_len += getraw(&byte, in_buf + in_len);
+			out_buf[out_len++] = byte;
+		}
+		/* 0* == pointer */
+		else {
+			in_len += getbit(&f, &bit, in_buf + in_len);
+
+			/* 00?? == pointer at small sliding window */
+			if (bit == 0) {
+				in_len += getbit(&f, &bit, in_buf + in_len);
+				lookahead_size = bit << 1;
+				in_len += getbit(&f, &bit, in_buf + in_len);
+				lookahead_size |= bit;
+				lookahead_size += 2;
+
+				byte = in_buf[in_len];
+				in_len++;
+
+				offset = WINDOW_SMALL - byte;
+			}
+			/* 01 == pointer at big sliding window */
+			else {
+				in_len += getraw(&byte, in_buf + in_len);
+				lookahead_size = (byte & 7);
+				word = byte;
+				in_len += getraw(&byte, in_buf + in_len);
+				word = ((uint16_t) byte << 8) | word;
+
+				offset = WINDOW_BIG - (word >> 3);
+
+				if (lookahead_size == 0) {
+					in_len += getraw(&byte, in_buf + in_len);
+					lookahead_size = byte;
+				}
+
+				if (lookahead_size == 0)
+					done = 1;
+				else
+					lookahead_size += 2;
+			}
+
+			for (uint16_t i = 0; i < lookahead_size; i++) {
+				/* Dont write more than allocated memory */
+				if (out_len == dec_len)
+					break;
+
+				out_buf[out_len] = out_buf[out_len - offset];
+				out_len++;
+			}
+		}
+	}
+
+	if (!done)
+		fprintf(stderr, "Warning: wrong encoded size in HSQ header\n");
+	else if (dec_len != out_len)
+		fprintf(stderr, "Warning: wrong decoded size in HSQ header\n");
+
+	fwrite(out_buf, 1, out_len, fw);
+
+	free(out_buf);
 
 	return 0;
 }
@@ -321,7 +443,7 @@ int decompress(FILE *fr, FILE *fw)
 int compress(FILE *fr, FILE *fw)
 {
 	flags_t f;
-	uint8_t out_buf[0x10000];
+	uint8_t out_buf[HSQ_MAX_SIZE];
 	uint8_t chunk_buf[FILE_CHUNK + WINDOW_BIG];
 	long chunk_len;
 	uint8_t *out_pos;
