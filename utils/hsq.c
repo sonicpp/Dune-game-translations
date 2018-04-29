@@ -324,8 +324,9 @@ size_t compress_chunk(flags_t *f, const uint8_t *istream,
 
 int check_header(const uint8_t *header, size_t *in_len, size_t *out_len)
 {
-	*in_len = header[3] + (header[4] << 8);
-	*out_len = header[0] + (header[1] << 8) + (header[2] << 8);
+	*out_len = (((size_t) header[0]) << 0) | (((size_t) header[1]) << 8) |
+		   (((size_t) header[2]) << 16);
+	*in_len  = (((size_t) header[3]) << 0) | (((size_t) header[4]) << 8);
 
 	if (*in_len > HSQ_MAX_SIZE)
 		return 1;
