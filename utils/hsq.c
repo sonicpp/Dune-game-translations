@@ -515,7 +515,7 @@ int main(int argc, char *argv[])
 
 	/* input file */
 	if (fr_name) {
-		if ((fr = fopen(fr_name, "r")) == NULL) {
+		if ((fr = fopen(fr_name, "rb")) == NULL) {
 			fprintf(stderr, "Opening file '%s' failed: %s\n",
 				fr_name, strerror(errno));
 			return 1;
@@ -526,7 +526,7 @@ int main(int argc, char *argv[])
 
 	/* output file */
 	if (fw_name) {
-		if ((fw = fopen(fw_name, "w")) == NULL) {
+		if ((fw = fopen(fw_name, "wb")) == NULL) {
 			fprintf(stderr, "Opening file '%s' failed: %s\n",
 				fw_name, strerror(errno));
 			if (fr != stdin)
