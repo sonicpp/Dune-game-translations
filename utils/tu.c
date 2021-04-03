@@ -110,8 +110,7 @@ int check_args(const int argc, char * const argv[],
 		*operation = (pack) ? PACK : UNPACK;
 		*fin = argv[optind];
 		*fout = argv[optind + 1];
-	}
-	else if (check == 1) {
+	} else if (check == 1) {
 		if (argc - optind != 1) {
 			print_help();
 			return 1;
@@ -372,8 +371,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 		}
-	}
-	else {
+	} else {
 		if (pack(buffer, f_len, fw_name, verbose)) {
 			free(buffer);
 

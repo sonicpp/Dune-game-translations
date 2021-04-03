@@ -55,7 +55,7 @@ void print_help(void)
 		" -d, --decompress\tdecompress input file and write to the output\n"
 		" -o, --out FILE\tsave output to FILE instead to stdout\n"
 		" -h, --help\tprint this help\n");
- }
+}
 
 int check_args(int argc, char *argv[],
 	int *verbose, enum OP_TYPE *operation,
@@ -112,8 +112,7 @@ int check_args(int argc, char *argv[],
 	if (argc - optind > 1) {
 		print_help();
 		return 1;
-	}
-	else if (argc - optind == 1) {
+	} else if (argc - optind == 1) {
 		*fin = argv[optind];
 	}
 
@@ -204,9 +203,8 @@ size_t compress_pattern(flags_t *f, const uint8_t *lookahead_bgn,
 	if (lookahead_size == 1) {
 		ostream += putbit(f, 1, ostream);
 		putraw(f, lookahead_bgn[0]);
-	}
 	/* Save as pointer */
-	else {
+	} else {
 		ostream += putbit(f, 0, ostream);
 		offset = lookahead_bgn - match;
 
@@ -218,9 +216,8 @@ size_t compress_pattern(flags_t *f, const uint8_t *lookahead_bgn,
 			ostream += putbit(f, (lookahead_size - 2) & 0x1,
 				ostream);
 			putraw(f, WINDOW_SMALL - offset);
-		}
 		/* Pointer at big sliding window */
-		else if (lookahead_size <= 257) {
+		} else if (lookahead_size <= 257) {
 			ostream += putbit(f, 1, ostream);
 
 			if (lookahead_size <= 9)
@@ -270,8 +267,7 @@ size_t save_lookh_buf(flags_t *f, const uint8_t *istream, long istream_len,
 			lookh->size - 1, ostream, match);
 		lookh->bgn += lookh->size - 1;
 		lookh->end--;
-	}
-	else {
+	} else {
 		ostream += compress_pattern(f, lookh->bgn, 1, ostream, match);
 		lookh->bgn++;
 		lookh->end -= lookh->size - 1;
@@ -379,9 +375,8 @@ int decompress(FILE *fr, FILE *fw)
 
 			in_len += getraw(&byte, in_buf + in_len);
 			out_buf[out_len++] = byte;
-		}
 		/* 0* == pointer */
-		else {
+		} else {
 			in_len += getbit(&f, &bit, in_buf + in_len);
 
 			/* 00?? == pointer at small sliding window */
@@ -396,9 +391,8 @@ int decompress(FILE *fr, FILE *fw)
 				in_len++;
 
 				offset = WINDOW_SMALL - byte;
-			}
 			/* 01 == pointer at big sliding window */
-			else {
+			} else {
 				in_len += getraw(&byte, in_buf + in_len);
 				lookahead_size = (byte & 7);
 				word = byte;
@@ -520,9 +514,9 @@ int main(int argc, char *argv[])
 				fr_name, strerror(errno));
 			return 1;
 		}
-	}
-	else
+	} else {
 		fr = stdin;
+	}
 
 	/* output file */
 	if (fw_name) {
@@ -533,14 +527,13 @@ int main(int argc, char *argv[])
 				fclose(fr);
 			return 1;
 		}
-	}
-	else
+	} else {
 		fw = stdout;;
+	}
 
 	if (operation == COMPRESS) {
 		compress(fr, fw);
-	}
-	else {
+	} else {
 		if (decompress(fr, fw))
 			fprintf(stderr, "Decompression failed\n");
 	}
